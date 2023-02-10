@@ -13,11 +13,15 @@ const http = require("http").Server(app);
 
 // const socket = require("socket.io")(http, {
 //   cors: {
-//     origin: "http://localhost:8080/",
+//     origin: "http://localhost:8080",
 //   },
 // });
 
-const socket = require("socket.io")(http, { cors: { origin: "*" } });
+const socket = require("socket.io")(http, {
+  cors: {
+    origin: "https://sockets-client.onrender.com",
+  },
+});
 
 global.usersOnline = new Map();
 
