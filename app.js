@@ -7,9 +7,15 @@ const app = express();
 
 app.use(cors());
 
-const { PORT } = process.env;
+const { PORT, HOST_URI } = process.env;
+
+const db = require("./services/message");
 
 const http = require("http").Server(app);
+
+mongoose.connect(HOST_URI, () => {
+  console.log("Connected to database");
+});
 
 // const socket = require("socket.io")(http, {
 //   cors: {
@@ -25,11 +31,34 @@ const socket = require("socket.io")(http, {
 
 global.usersOnline = new Map();
 
-socket.on("connection", (client) => {
-  usersOnline.set(client.id, client.id);
-
+socket.on("connection", async (client) => {
   client.emit("changedOnline", usersOnline.size);
-  client.broadcast.emit("changedOnline", usersOnline.size);
+
+  // Adding new user to chat when user entered name
+  client.on("addUser", async (name) => {
+    usersOnline.set(client.id, name);
+
+    client.emit("changedOnline", usersOnline.size);
+    client.broadcast.emit("changedOnline", usersOnline.size);
+
+    const messages = await db.findAllMessages();
+    client.emit("fetchedMessages", messages);
+  });
+
+  // Adding new message from user
+  client.on("addMessage", async (message) => {
+    const result = await db.createMessage(message);
+
+    client.emit("changedMessages", result);
+    client.broadcast.emit("changedMessages", result);
+  });
+
+  // Deleting user from chat
+  client.on("disconnect", () => {
+    usersOnline.delete(client.id);
+
+    client.broadcast.emit("changedOnline", usersOnline.size);
+  });
 });
 
 http.listen(PORT, () => {
